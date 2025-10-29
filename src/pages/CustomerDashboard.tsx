@@ -15,6 +15,7 @@ interface Order {
   status: string;
   total_amount: number;
   payment_status: string;
+  approved: boolean;
 }
 
 interface Conversation {
@@ -76,6 +77,23 @@ const CustomerDashboard = () => {
 
     if (ordersData) setOrders(ordersData);
 
+    // Set up realtime subscription for order updates
+    const channel = supabase
+      .channel('customer-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${userId}`
+        },
+        () => {
+          loadDashboardData(userId);
+        }
+      )
+      .subscribe();
+
     // Load conversations
     const { data: conversationsData } = await supabase
       .from("chat_conversations")
@@ -132,6 +150,23 @@ const CustomerDashboard = () => {
         return "bg-accent text-accent-foreground";
       default:
         return "bg-destructive text-destructive-foreground";
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ approved: true })
+      .eq("id", orderId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast.error("Failed to approve order");
+    } else {
+      toast.success("Order approved successfully!", {
+        className: "bg-success text-success-foreground border-success"
+      });
+      loadDashboardData(user.id);
     }
   };
 
@@ -246,13 +281,27 @@ const CustomerDashboard = () => {
                           <p className="font-bold text-primary">${order.total_amount.toFixed(2)}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 items-center">
                         <Badge className={getStatusColor(order.status)}>
                           {order.status}
                         </Badge>
                         <Badge className={getPaymentStatusColor(order.payment_status)}>
                           {order.payment_status}
                         </Badge>
+                        {order.approved && (
+                          <Badge className="bg-success text-success-foreground">
+                            ✓ Approved
+                          </Badge>
+                        )}
+                        {!order.approved && order.status === "delivered" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveOrder(order.id)}
+                            className="ml-2 bg-success hover:bg-success/90 text-success-foreground"
+                          >
+                            Confirm Received
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

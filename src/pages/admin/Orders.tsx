@@ -110,10 +110,7 @@ const AdminOrders = () => {
   const fetchOrders = async () => {
     const { data, error } = await supabase
       .from("orders")
-      .select(`
-        *,
-        profiles(full_name, email)
-      `)
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -121,7 +118,23 @@ const AdminOrders = () => {
       return;
     }
 
-    setOrders(data || []);
+    // Fetch profiles separately for orders with user_id
+    const ordersWithProfiles = await Promise.all(
+      (data || []).map(async (order) => {
+        if (order.user_id) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", order.user_id)
+            .maybeSingle();
+          
+          return { ...order, profiles: profile || { full_name: "Guest", email: order.customer_email || "N/A" } };
+        }
+        return { ...order, profiles: { full_name: order.customer_name || "Guest", email: order.customer_email || "N/A" } };
+      })
+    );
+
+    setOrders(ordersWithProfiles);
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {

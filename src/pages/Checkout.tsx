@@ -28,6 +28,7 @@ const Checkout = () => {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentOption, setPaymentOption] = useState("half");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -51,10 +52,28 @@ const Checkout = () => {
   }, [navigate]);
 
   useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (roleData) {
+        setIsAdmin(true);
+        toast.error("Administrators cannot make purchases. Please use a customer account.");
+        navigate("/admin/dashboard");
+      }
+    };
+
     if (user) {
+      checkAdmin();
       fetchCart();
     }
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchCart = async () => {
     const { data, error } = await supabase
@@ -266,8 +285,8 @@ const Checkout = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Processing..." : "Place Order"}
+                  <Button type="submit" size="lg" className="w-full" disabled={isLoading || isAdmin}>
+                    {isAdmin ? "Admin Cannot Place Orders" : isLoading ? "Processing..." : "Place Order"}
                   </Button>
                 </CardContent>
               </Card>

@@ -24,6 +24,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,10 +48,28 @@ const Cart = () => {
   }, [navigate]);
 
   useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (roleData) {
+        setIsAdmin(true);
+        toast.error("Administrators cannot make purchases. Please use a customer account.");
+        navigate("/admin/dashboard");
+      }
+    };
+
     if (user) {
+      checkAdmin();
       fetchCart();
     }
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchCart = async () => {
     const { data, error } = await supabase
@@ -220,8 +239,9 @@ const Cart = () => {
                     onClick={() => navigate("/checkout")}
                     size="lg"
                     className="w-full"
+                    disabled={isAdmin}
                   >
-                    Proceed to Checkout
+                    {isAdmin ? "Admin Cannot Checkout" : "Proceed to Checkout"}
                   </Button>
                 </CardContent>
               </Card>
