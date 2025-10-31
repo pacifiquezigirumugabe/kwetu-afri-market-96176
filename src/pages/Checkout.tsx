@@ -110,80 +110,35 @@ const Checkout = () => {
 
     const formData = new FormData(e.currentTarget);
     
-    // Create order
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        status: "pending",
-        payment_status: paymentOption === "half" ? "partial" : "full",
-        total_amount: totalAmount,
-        paid_amount: paidAmount,
-        street_address: formData.get("street_address") as string,
-        apartment_suite: formData.get("apartment_suite") as string,
-        city: formData.get("city") as string,
-        state: "NY",
-        zip_code: formData.get("zip_code") as string,
-        delivery_notes: formData.get("delivery_notes") as string,
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          paymentOption,
+          deliveryAddress: {
+            street_address: formData.get("street_address") as string,
+            apartment_suite: formData.get("apartment_suite") as string,
+            city: formData.get("city") as string,
+            state: "NY",
+            zip_code: formData.get("zip_code") as string,
+            delivery_notes: formData.get("delivery_notes") as string,
+          },
+        },
+      });
 
-    if (orderError) {
-      toast.error("Failed to create order");
-      setIsLoading(false);
-      return;
-    }
-
-    // Create order items
-    const orderItems = cartItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.products.id,
-      quantity: item.quantity,
-      price: item.products.price,
-      weight_kg: item.products.weight_kg,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-
-    if (itemsError) {
-      toast.error("Failed to create order items");
-      setIsLoading(false);
-      return;
-    }
-
-    // Update stock quantities for each product
-    for (const item of cartItems) {
-      const newStockQuantity = item.products.stock_quantity - item.quantity;
-      
-      const { error: stockError } = await supabase
-        .from("products")
-        .update({ stock_quantity: newStockQuantity })
-        .eq("id", item.products.id);
-
-      if (stockError) {
-        console.error("Failed to update stock:", stockError);
+      if (error) {
+        throw error;
       }
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+        toast.success("Redirecting to payment...");
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast.error(error.message || "Failed to initiate checkout");
+    } finally {
+      setIsLoading(false);
     }
-
-    // Clear cart
-    const { error: clearError } = await supabase
-      .from("cart_items")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (clearError) {
-      console.error("Failed to clear cart:", clearError);
-    }
-
-    setIsLoading(false);
-    toast.success("🎉 Order placed successfully! We'll process it shortly.", {
-      className: "bg-success text-success-foreground border-success",
-      duration: 5000
-    });
-    navigate("/");
   };
 
   return (
@@ -286,7 +241,7 @@ const Checkout = () => {
                   </div>
 
                   <Button type="submit" size="lg" className="w-full" disabled={isLoading || isAdmin}>
-                    {isAdmin ? "Admin Cannot Place Orders" : isLoading ? "Processing..." : "Place Order"}
+                    {isAdmin ? "Admin Cannot Place Orders" : isLoading ? "Processing..." : "Proceed to Payment"}
                   </Button>
                 </CardContent>
               </Card>
