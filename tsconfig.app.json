@@ -1,40 +1,25 @@
 {
   "compilerOptions": {
-    /* ✅ Target modern JS for Vite */
     "target": "ESNext",
     "useDefineForClassFields": true,
-
-    /* ✅ Include latest DOM features */
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-
-    /* ✅ Module system for Vite */
     "module": "ESNext",
-    "moduleResolution": "Node",
-
-    /* ✅ Required for React 17+ JSX transform */
+    "moduleResolution": "Bundler",  // ← Changed this
     "jsx": "react-jsx",
-
-    /* ✅ Performance and compatibility */
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "noEmit": true,
-
-    /* ✅ Optional linting/strictness settings */
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
-
-    /* ✅ Path alias (works with Vite config) */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-
-  /* ✅ Ensure the compiler processes source files */
   "include": ["src"]
 }
